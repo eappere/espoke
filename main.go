@@ -16,7 +16,7 @@
 package main
 
 import (
-	"github.com/BarthV/espoke/cmd"
+	"github.com/criteo-forks/espoke/cmd"
 )
 
 func main() {
