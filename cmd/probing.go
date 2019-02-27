@@ -18,7 +18,7 @@ func probeNode(node *esnode, updateProbingPeriod time.Duration) error {
 		Timeout: updateProbingPeriod - 2*time.Second,
 	}
 
-	probingURL := fmt.Sprintf("http://%v:%v/_all/_search", node.ip, node.port)
+	probingURL := fmt.Sprintf("http://%v:%v/_cat/indices?v", node.ip, node.port)
 	log.Debug("Start probing ", node.name)
 
 	start := time.Now()
