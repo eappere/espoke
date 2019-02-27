@@ -26,13 +26,13 @@ after_success:
 deploy:
   provider: releases
   api_key:
-    secure: WYqs6d52utQJWahpEli1SibaKrBdFFQ+/fqaoNweKWdCp0/cvk2EPhfRkSOL7FPZxyh+vk6iQFvYaagQYpPbpDmnJF2EEnfCf+L4CSjTcsamMkurOU3/HU4U2kGg9NaGGeci7CuirXkeQuu+Gbqar/V88qNB/UGO+rAR8cLhJVguQZtcGtip5zLMweINil1xan/WnBBFI3UOZiNuIxjtztuw0A1FTclfao4aondYWNh8M8l19DWd8X5zrJFGoFlyxX8UR9yroELVTm2dbO0RY3qBnHefa+ND//hb8NQDMyF7tRKiQUJCgwfE/Ppt4XBZgveZT1wlYFJLQXAg1pRx0cT5NgU4OxzrflYieTwuxcGV8N69GL8O4mzk9PE6+vM8Cox7xY7zEtkppjhBBnT3DAl6NyKCLarqFrZ+Hj60rdh1/KxGl5ELXtsfeREJi6ZgSfP5RhjJi/5GzO9InkefThQ9WVPfJwOiXaIh2cVcfHxWFwUzTF+Sielj/ppedPzQBbsr4TvbF1naRXh5Prio9HIg43r7SDnJbMUqjHByKJ4ldwKYyC8p5LMSf1qJwpkkYGHdnxZ+kyeoxXkEwOCk0iX1MCJXEFgRDwpKdgCZ7ZhP14F91QnkDohCZjnvitsXKgfnp7rUAW3erl+ChU29zSmffWim+TUtCitNrialwGE=
+    secure: fLaGOUrGbhprGMAKnB2mh5HQS0D8MixYD/WQxiq12SA7nWmCX0GqNm9MdCOoou2irC4XKFACOqQkx0yYmKqgZ0LXYvPeqzs+F6SQjaYW8aglo/1xLm4O0LQWP2rs8AIdPGqbVCTMyj1hkJoGBAJA638TQbCPXqRLstMLesSCW3tITkhUMdkgW4zNgKCUVAg7YMD78c202nXUwdiKSdIJeaXOkOUJNe4ObkyC5TgHUSVZmC9hpMkWLtwIJcBelR1//Ym3a106IQyqlt9clmTh18/wDz8l5mvHUAO23W0Vzd6mJ7AiKQ+ZsKmK7IfshSVFG/pxBDtAKlcxikFW+0tpeSetGoto8YBvdK5HmyxeQaY2A5vpCHg6zKRKBNnWihMmq0AjgkB60PLmDc4pUj4LNy/Mn62lRA/A8RiO2CgXPUffRvwwIXmJoyLVUjBUp5z6c3VvjlnCZ/cgNczx5IRDGo2KRQrNQlFhMrMktZK6btq7R0XUaEMSn86UJa8+IvQ/GKLblA7JOXzDl26ooO0WNIHV0Bla3n841if5AuGnnYvPPSt7n38EjRLL1rkPpiaMKW66mCutfipuqc02+ZiZRgaeCO+05X5yQPCK9xXLdCjcPFo9MdXiSU4Xcu2k47pnNuTP4lOlmHHokKsee99IW/tmLx2d0cdFMg5FR7C3PKE=
   file:
     - "espoke_linux_amd64"
     - "espoke_darwin_amd64"
     - "espoke_windows_amd64.exe"
   skip_cleanup: true
   on:
-    repo: BarthV/espoke
+    repo: criteo-forks/espoke
     tags: true
     condition: $RELEASE_VERSION = true
