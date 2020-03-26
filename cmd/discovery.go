@@ -18,7 +18,6 @@ type esnode struct {
 	ip      string
 	port    int
 	cluster string
-	version string
 }
 
 func contains(a []string, x string) bool {
@@ -32,6 +31,8 @@ func contains(a []string, x string) bool {
 
 func updateEverKnownNodes(allEverKnownNodes []string, nodes []esnode) []string {
 	for _, node := range nodes {
+		// TODO: Replace by a real struct instead of a string concatenation...
+		// also allEverKnownNodes leak memory as it never delete old/cleaned items
 		serializedNode := fmt.Sprintf("%v|%v", node.name, node.cluster)
 		if contains(allEverKnownNodes, serializedNode) == false {
 			allEverKnownNodes = append(allEverKnownNodes, serializedNode)
@@ -51,17 +52,7 @@ func clusterNameFromTags(serviceTags []string) string {
 	return ""
 }
 
-func versionFromTags(serviceTags []string) string {
-	for _, tag := range serviceTags {
-		splitted := strings.SplitN(tag, "-", 2)
-		if splitted[0] == "version" {
-			return splitted[1]
-		}
-	}
-	return ""
-}
-
-func discoverEsNodes() ([]esnode, error) {
+func discoverNodesForService(serviceName string) ([]esnode, error) {
 	start := time.Now()
 
 	consulConfig := api.DefaultConfig()
@@ -74,7 +65,7 @@ func discoverEsNodes() ([]esnode, error) {
 	}
 
 	catalogServices, _, err := consul.Catalog().Service(
-		"elasticsearch-all", "",
+		serviceName, "",
 		&api.QueryOptions{AllowStale: true, RequireConsistent: false, UseCache: true},
 	)
 	if err != nil {
@@ -92,7 +83,6 @@ func discoverEsNodes() ([]esnode, error) {
 			ip:      svc.Address,
 			port:    svc.ServicePort,
 			cluster: clusterNameFromTags(svc.ServiceTags),
-			version: versionFromTags(svc.ServiceTags),
 		})
 	}
 
