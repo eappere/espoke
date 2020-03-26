@@ -1,11 +1,8 @@
 language: go
 matrix:
   include:
-  - go: 1.11.x
+  - go: 1.14.x
     env: RELEASE_VERSION=true
-  - go: tip
-  allow_failures:
-  - go: tip
 
 # simple cross compile tool for go
 before_install:
@@ -16,7 +13,6 @@ install:
   - # skip
 
 script:
-  - "./go.test.sh"
   - if [ "${RELEASE_VERSION}"  = "true" ]; then gox -os="linux darwin windows" -arch="amd64"
     -ldflags "-X main.Rev=`git rev-parse --short HEAD`" -verbose ./...; fi
 
