@@ -36,7 +36,7 @@ Expose all measures using a prometheus compliant HTTP endpoint.`,
 			errorsCount.Inc()
 			log.Fatal("Impossible to discover kibana nodes during bootstrap, exiting")
 		}
-		allEverKnownEsNodes = updateEverKnownNodes(allEverKnownKibanaNodes, kibanaNodesList)
+		allEverKnownKibanaNodes = updateEverKnownNodes(allEverKnownKibanaNodes, kibanaNodesList)
 
 		log.Info("Initializing tickers")
 		updateDiscoveryPeriod, err := time.ParseDuration(consulPeriod)
