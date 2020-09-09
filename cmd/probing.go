@@ -18,7 +18,7 @@ func probeElasticsearchNode(node *esnode, updateProbingPeriod time.Duration) err
 		Timeout: updateProbingPeriod - 2*time.Second,
 	}
 
-	probingURL := fmt.Sprintf("http://%v:%v/_cat/indices?v", node.ip, node.port)
+	probingURL := fmt.Sprintf("%v://%v:%v/_cat/indices?v", node.scheme, node.ip, node.port)
 	log.Debug("Start probing ", node.name)
 
 	start := time.Now()
