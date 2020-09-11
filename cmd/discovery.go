@@ -18,6 +18,7 @@ type esnode struct {
 	ip      string
 	port    int
 	cluster string
+	scheme  string
 }
 
 func contains(a []string, x string) bool {
@@ -52,6 +53,18 @@ func clusterNameFromTags(serviceTags []string) string {
 	return ""
 }
 
+func schemeFromTags(serviceTags []string) string {
+	scheme := "http"
+	for _, tag := range serviceTags {
+		if tag == "https" {
+			scheme = tag
+			break
+		}
+	}
+
+	return scheme
+}
+
 func discoverNodesForService(serviceName string) ([]esnode, error) {
 	start := time.Now()
 
@@ -82,6 +95,7 @@ func discoverNodesForService(serviceName string) ([]esnode, error) {
 			name:    svc.Node,
 			ip:      svc.Address,
 			port:    svc.ServicePort,
+			scheme:  schemeFromTags(svc.ServiceTags),
 			cluster: clusterNameFromTags(svc.ServiceTags),
 		})
 	}
