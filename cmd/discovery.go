@@ -89,11 +89,15 @@ func discoverNodesForService(serviceName string) ([]esnode, error) {
 
 	var nodeList []esnode
 	for _, svc := range catalogServices {
-		log.Debug("Service discovered: ", svc.Node, " (", svc.Address, ":", svc.ServicePort, ")")
+		var addr string = svc.Address
+		if svc.ServiceAddress != "" {
+			addr = svc.ServiceAddress
+		}
 
+		log.Debug("Service discovered: ", svc.Node, " (", addr, ":", svc.ServicePort, ")")
 		nodeList = append(nodeList, esnode{
 			name:    svc.Node,
-			ip:      svc.Address,
+			ip:      addr,
 			port:    svc.ServicePort,
 			scheme:  schemeFromTags(svc.ServiceTags),
 			cluster: clusterNameFromTags(svc.ServiceTags),
