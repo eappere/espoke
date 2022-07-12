@@ -5,11 +5,12 @@ package common
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"sort"
-	"strings"
 )
 
 //TODO detect probe stuck
@@ -55,9 +56,14 @@ func DiscoverNodesForService(consul *api.Client, serviceName string) ([]Node, er
 			addr = svc.ServiceAddress
 		}
 
-		log.Debug("Service discovered: ", svc.Node, " (", addr, ":", svc.ServicePort, ")")
+		node_name := svc.Node
+		if fqdn, ok := svc.NodeMeta["fqdn"]; ok {
+			node_name = fqdn
+		}
+
+		log.Debug("Service discovered: ", node_name, " (", addr, ":", svc.ServicePort, ")")
 		nodeList = append(nodeList, Node{
-			Name:    svc.Node,
+			Name:    node_name,
 			Ip:      addr,
 			Port:    svc.ServicePort,
 			Scheme:  schemeFromTags(svc.ServiceTags),
