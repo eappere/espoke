@@ -41,7 +41,7 @@ func NewClient(consulTarget string) (*api.Client, error) {
 func DiscoverNodesForService(consul *api.Client, serviceName string) ([]Node, error) {
 	catalogServices, _, err := consul.Catalog().Service(
 		serviceName, "",
-		&api.QueryOptions{AllowStale: true, RequireConsistent: false, UseCache: true},
+		&api.QueryOptions{AllowStale: true, RequireConsistent: false},
 	)
 	if err != nil {
 		log.Error("Consul Discovery failed: ", err.Error())
