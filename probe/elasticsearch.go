@@ -8,15 +8,18 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/criteo-forks/espoke/common"
-	"github.com/google/uuid"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
+	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/criteo-forks/espoke/common"
+	"github.com/google/uuid"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 
 	elasticsearch7 "github.com/elastic/go-elasticsearch/v7"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +33,21 @@ var (
 )
 
 const millisecondInMinute = 60_000
+
+type OsSnapshotMetadataPart struct {
+	SmPolicy string `json:"sm_policy"`
+}
+
+type OsSnapshotPart struct {
+	Snapshot  string                 `json:"snapshot"`
+	State     string                 `json:"state"`
+	StartTime time.Time              `json:"start_time"`
+	Metadata  OsSnapshotMetadataPart `json:"metadata"`
+}
+
+type OsSnapshotsApiResponse struct {
+	Snapshots []OsSnapshotPart `json:"snapshots"`
+}
 
 type EsDocument struct {
 	Name     string
@@ -62,7 +80,7 @@ type EsProbe struct {
 	controlChan chan bool
 }
 
-func NewEsProbe(clusterName, endpoint string, clusterConfig common.Cluster, config *common.Config, consulClient *api.Client, controlChan chan bool) (EsProbe, error) {
+func NewEsProbe(clusterName string, clusterConfig common.Cluster, config *common.Config, consulClient *api.Client, controlChan chan bool) (EsProbe, error) {
 	var allEverKnownEsNodes []string
 	esNodesList, err := common.DiscoverNodesForService(consulClient, clusterConfig.Name)
 	if err != nil {
@@ -70,7 +88,7 @@ func NewEsProbe(clusterName, endpoint string, clusterConfig common.Cluster, conf
 	}
 	allEverKnownEsNodes = common.UpdateEverKnownNodes(allEverKnownEsNodes, esNodesList)
 
-	client, err := initEsClient(clusterConfig.Scheme, endpoint, config.ElasticsearchUser, config.ElasticsearchPassword)
+	client, err := initEsClient(clusterConfig.Scheme, clusterConfig.Endpoint, config.ElasticsearchUser, config.ElasticsearchPassword)
 	if err != nil {
 		return EsProbe{}, errors.Wrapf(err, "Failed to init elasticsearch client for cluster %s", clusterName)
 	}
@@ -264,7 +282,16 @@ func (es *EsProbe) StartEsProbing() error {
 			go func() {
 				defer sem.Done()
 				// Check snapshot policy exist and get last success snapshot
-				snapshotName, policyExist, err := es.getLatestSuccessSnapshot()
+				var snapshotName string
+				var policyExist bool
+				var err error
+
+				if es.config.Opensearch {
+					snapshotName, policyExist, err = es.getLatestSuccessSnapshotOpensearch()
+				} else {
+					snapshotName, policyExist, err = es.getLatestSuccessSnapshot()
+				}
+
 				if err != nil {
 					log.Error(err)
 					common.ClusterRestoreErrorsCount.WithLabelValues(es.clusterName).Add(1)
@@ -333,6 +360,67 @@ func (es *EsProbe) getLatestSuccessSnapshot() (string, bool, error) {
 		return "", false, errors.Errorf("Policy %s on cluster %s doesn't have any snapshot_name", es.config.ElasticsearchRestoreSnapshotPolicy, es.clusterName)
 	}
 	return snapshot_name, true, nil
+}
+
+func (es *EsProbe) getLatestSuccessSnapshotOpensearch() (string, bool, error) {
+	//fmt.Printf("_snapshot/%s/_all", es.config.ElasticsearchRestoreSnapshotRepository)
+
+	//url := fmt.Sprintf("/_snapshot/%s/_all", es.config.ElasticsearchRestoreSnapshotRepository)
+
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	client := &http.Client{
+		Timeout: es.timeout,
+	}
+
+	//probingURL := fmt.Sprintf("%v://%v:%v/_cat/health?v", node.Scheme, node.Ip, node.Port)
+
+	//url := fmt.Sprintf("/_cat/shards")
+	url := fmt.Sprintf("%s://%s/_snapshot/%s/_all", es.clusterConfig.Scheme, es.clusterConfig.Endpoint, es.config.ElasticsearchRestoreSnapshotRepository)
+	//url := fmt.Sprintf("%s://%s/_cat/health?v", es.clusterConfig.Scheme, es.clusterConfig.Endpoint)
+	req, err := http.NewRequest("GET", url, nil)
+	req.SetBasicAuth(es.config.ElasticsearchUser, es.config.ElasticsearchPassword)
+	if err != nil {
+		return "", false, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", false, fmt.Errorf("error: received non-OK status code %d (%s)", resp.StatusCode, es.clusterName)
+	}
+
+	var snapshotsResponse OsSnapshotsApiResponse
+	body, err := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(body, &snapshotsResponse); err != nil {
+		return "", false, fmt.Errorf("error unmarshalling JSON: %v (%s)", err, es.clusterName)
+	}
+
+	// Filter successful snapshots by state and metadata.sm_policy matching policy name
+	var successfulSnapshots []OsSnapshotPart
+	for _, snapshot := range snapshotsResponse.Snapshots {
+		fmt.Printf("snapshot name %s state %s policy %s\n", snapshot.Snapshot, snapshot.State, snapshot.Metadata.SmPolicy)
+		if snapshot.State == "SUCCESS" && snapshot.Metadata.SmPolicy == es.config.ElasticsearchRestoreSnapshotPolicy {
+			successfulSnapshots = append(successfulSnapshots, snapshot)
+		}
+	}
+
+	if len(successfulSnapshots) == 0 {
+		log.Warn(fmt.Errorf("no successful snapshots found with sm_policy '%s' in repository %s (%s)",
+			es.config.ElasticsearchRestoreSnapshotPolicy, es.config.ElasticsearchRestoreSnapshotRepository, es.clusterName))
+		return "", false, nil
+	}
+
+	// Sort snapshots by StartTime to get the most recent one
+	sort.Slice(successfulSnapshots, func(i, j int) bool {
+		return successfulSnapshots[i].StartTime.After(successfulSnapshots[j].StartTime)
+	})
+
+	// Return the most recent successful snapshot that matches metadata.sm_policy
+	return successfulSnapshots[0].Snapshot, true, nil
 }
 
 func (es *EsProbe) restoreDurabilityIndex(snapshotName string) error {
